@@ -47,12 +47,13 @@ def solve_ivp(derive_func, t_span, y0, method, t_eval, args):
 
     """
 
-    sol  = np.zeros((len(y0),len(t_eval))) # define the shape of the solution
-
-    #
-    # TODO:
-    #
-
+    sol  = np.zeros((len(y0),len(t_eval))) 
+    dt = t_eval[1]-t_eval[0]
+    y = y0
+    for i in range(len(t_eval)):
+        t = t_eval[i]
+        sol[:,i] = y
+        y = _update(derive_func,y,dt,t,method,*args)
     return sol
 
 def _update(derive_func,y0, dt, t, method, *args):
@@ -89,11 +90,9 @@ def _update_euler(derive_func,y0,dt,t,*args):
 
     """
 
-    #
-    # TODO:
-    #
+    y = y0 + dt*derive_func(t,y0,*args)
 
-    return y0 # <- change here. just a placeholder
+    return y
 
 def _update_rk2(derive_func,y0,dt,t,*args):
     """
@@ -102,11 +101,11 @@ def _update_rk2(derive_func,y0,dt,t,*args):
     :return: the next step solution y
     """
 
-    #
-    # TODO:
-    #
+    k1 = derive_func(t,y0,*args)
+    k2 = derive_func(t+dt,y0+dt*k1,*args)
+    y = y0 + dt/2*(k1+k2)
 
-    return y0 # <- change here. just a placeholder
+    return y
 
 def _update_rk4(derive_func,y0,dt,t,*args):
     """
@@ -115,11 +114,13 @@ def _update_rk4(derive_func,y0,dt,t,*args):
     :return: the next step solution y
     """
 
-    #
-    # TODO:
-    #
+    k1 = derive_func(t,y0,*args)
+    k2 = derive_func(t+dt/2,y0+dt/2*k1,*args)
+    k3 = derive_func(t+dt/2,y0+dt/2*k2,*args)
+    k4 = derive_func(t+dt,y0+dt*k3,*args)
+    y = y0 + dt/6*(k1+2*k2+2*k3+k4)
 
-    return y0 # <- change here. just a placeholder
+    return y
 
 if __name__=='__main__':
 
@@ -151,11 +152,11 @@ if __name__=='__main__':
 
         """
 
-        #
-        # TODO:
-        #
+        yderive = np.zeros(len(y))
+        yderive[0] = y[1]
+        yderive[1] = -K/M*y[0]
  
-        return y # <- change here. just a placeholder
+        return yderive # <- change here. just a placeholder
 
     t_span = (0, 10)
     y0     = np.array([1,0])
@@ -165,7 +166,7 @@ if __name__=='__main__':
     M = 1
 
     sol = solve_ivp(oscillator, t_span, y0, 
-                    method="Euler",t_eval=t_eval, args=(K,M))
+                    method="RK4",t_eval=t_eval, args=(K,M))
 
     print("sol=",sol[0])
     print("Done!")

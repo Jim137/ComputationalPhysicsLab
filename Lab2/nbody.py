@@ -50,15 +50,17 @@ For the course, computational physics lab
 
 """
 
+
 class Particles:
     """
-    
+
     The Particles class handle all particle properties
 
     for the N-body simulation. 
 
     """
-    def __init__(self,N:int=100):
+
+    def __init__(self, N: int = 100):
         """
         Prepare memories for N particles
 
@@ -74,72 +76,127 @@ class Particles:
                 _time: float. the simulation time 
 
         """
-        # TODO:
+        self.nparticles = N
+        self._masses = np.zeros((N, 1))
+        self._positions = np.zeros((N, 3))
+        self._velocities = np.zeros((N, 3))
+        self._accelerations = np.zeros((N, 3))
+        self._tags = np.linspace(1, N, N)
+        self._time = 0.0
         return
 
-    def output(self,fn, time):
+    @property
+    def masses(self):
+        return self._masses
+
+    @property
+    def positions(self):
+        return self._positions
+
+    @property
+    def velocities(self):
+        return self._velocities
+
+    @property
+    def accelerations(self):
+        return self._accelerations
+
+    @property
+    def tags(self):
+        return self._tags
+
+    @property
+    def time(self):
+        return self._time
+
+    @masses.setter
+    def masses(self, masses):
+        self._masses = masses
+
+    @positions.setter
+    def positions(self, pos):
+        self._positions = pos
+
+    @velocities.setter
+    def velocities(self, vel):
+        self._velocities = vel
+
+    @accelerations.setter
+    def accelerations(self, acc):
+        self._accelerations = acc
+
+    @tags.setter
+    def tags(self, tags):
+        self._tags = tags
+
+    @time.setter
+    def time(self, t):
+        self._time = t
+
+    def output(self, fn, time):
         """
         Write simulation data into a file named "fn"
 
 
         """
         mass = self._masses
-        pos  = self._positions
-        vel  = self._velocities
-        acc  = self._accelerations
-        tag  = self._tags
+        pos = self._positions
+        vel = self._velocities
+        acc = self._accelerations
+        tag = self._tags
         header = """
                 ----------------------------------------------------
                 Data from a 3D direct N-body simulation. 
 
                 rows are i-particle; 
-                coumns are :mass, tag, x ,y, z, vx, vy, vz, ax, ay, az
+                coumns are :tag, mass, x ,y, z, vx, vy, vz, ax, ay, az
 
                 NTHU, Computational Physics Lab
 
                 ----------------------------------------------------
                 """
         header += "Time = {}".format(time)
-        np.savetxt(fn,(tag[:],mass[:,0],pos[:,0],pos[:,1],pos[:,2],
-                            vel[:,0],vel[:,1],vel[:,2],
-                            acc[:,0],acc[:,1],acc[:,2]),header=header)
+        np.savetxt(fn, (tag[:], mass[:, 0], pos[:, 0], pos[:, 1], pos[:, 2],
+                        vel[:, 0], vel[:, 1], vel[:, 2],
+                        acc[:, 0], acc[:, 1], acc[:, 2]), header=header)
 
         return
 
+
 class NbodySimulation:
     """
-    
+
     The N-body Simulation class.
-    
+
     """
 
-    def __init__(self,particles:Particles):
+    def __init__(self, particles: Particles):
         """
         Initialize the N-body simulation with given Particles.
 
         :param particles: A Particles class.  
-        
+
         """
 
         # store the particle information
         self.nparticles = particles.nparticles
-        self.particles  = particles
+        self.particles = particles
 
         # Store physical information
-        self.time  = 0.0  # simulation time
+        self.time = 0.0  # simulation time
 
         # Set the default numerical schemes and parameters
         self.setup()
-        
+
         return
 
-    def setup(self, G=1, 
-                    rsoft=0.01, 
-                    method="RK4", 
-                    io_freq=10, 
-                    io_title="particles",
-                    io_screen=True,
-                    visualized=False):
+    def setup(self, G=1,
+              rsoft=0.01,
+              method="RK4",
+              io_freq=10,
+              io_title="particles",
+              io_screen=True,
+              visualized=False):
         """
         Customize the simulation enviroments.
 
@@ -153,37 +210,43 @@ class NbodySimulation:
         :param io_title: the output header
         :param io_screen: print message on screen or not.
         :param visualized: on the fly visualization or not. 
-        
+
         """
-        # TODO:
+        self.G = G
+        self.rsoft = rsoft
+        self.method = method
+        self.io_freq = io_freq
+        self.io_title = io_title
+        self.io_screen = io_screen
+        self.visualized = visualized
         return
 
-    def evolve(self, dt:float=0.01, tmax:float=1):
+    def evolve(self, dt: float = 0.01, tmax: float = 1):
         """
 
         Start to evolve the system
 
         :param dt: time step
         :param tmax: the finial time
-        
+
         """
         # TODO:
 
         method = self.method
-        if method=="Euler":
+        if method == "Euler":
             _update_particles = self._update_particles_euler
-        elif method=="RK2":
+        elif method == "RK2":
             _update_particles = self._update_particles_rk2
-        elif method=="RK4":
-            _update_particles = self._update_particles_rk4    
+        elif method == "RK4":
+            _update_particles = self._update_particles_rk4
         else:
             print("No such update meothd", method)
-            quit() 
+            quit()
 
         # prepare an output folder for lateron output
         io_folder = "data_"+self.io_title
         Path(io_folder).mkdir(parents=True, exist_ok=True)
-        
+
         # ====================================================
         #
         # The main loop of the simulation
@@ -202,21 +265,20 @@ class NbodySimulation:
         # TODO:
         return acc
 
-    def _update_particles_euler(self, dt, particles:Particles):
+    def _update_particles_euler(self, dt, particles: Particles):
         # TODO:
         return particles
 
-    def _update_particles_rk2(self, dt, particles:Particles):
+    def _update_particles_rk2(self, dt, particles: Particles):
         # TODO:
         return particles
 
-    def _update_particles_rk4(self, dt, particles:Particles):
+    def _update_particles_rk4(self, dt, particles: Particles):
         # TODO:
         return particles
 
 
-if __name__=='__main__':
-
+if __name__ == '__main__':
 
     # test Particles() here
     particles = Particles(N=100)

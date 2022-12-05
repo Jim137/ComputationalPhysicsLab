@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
-from numba import jit, njit, prange, set_num_threads
+from numba import jit, njit, prange, set_num_threads, get_num_threads
 
 """
 
@@ -49,6 +49,7 @@ Author: Kuo-Chuan Pan, NTHU 2022.10.30
 For the course, computational physics lab
 
 """
+set_num_threads(get_num_threads())
 
 
 class Particles:
@@ -77,7 +78,7 @@ class Particles:
 
         """
         self.nparticles = N
-        self._masses = np.zeros((N, 1))
+        self._masses = np.ones((N, 1))
         self._positions = np.zeros((N, 3))
         self._velocities = np.zeros((N, 3))
         self._accelerations = np.zeros((N, 3))
@@ -111,23 +112,31 @@ class Particles:
 
     @masses.setter
     def masses(self, masses):
-        self._masses = masses
+        for i in range(self.nparticles):
+            self._masses[i] = masses[i]
 
     @positions.setter
     def positions(self, pos):
-        self._positions = pos
+        for i in range(self.nparticles):
+            for j in range(3):
+                self._positions[i, j] = pos[i, j]
 
     @velocities.setter
     def velocities(self, vel):
-        self._velocities = vel
+        for i in range(self.nparticles):
+            for j in range(3):
+                self._velocities[i, j] = vel[i, j]
 
     @accelerations.setter
     def accelerations(self, acc):
-        self._accelerations = acc
+        for i in range(self.nparticles):
+            for j in range(3):
+                self._accelerations[i, j] = acc[i, j]
 
     @tags.setter
     def tags(self, tags):
-        self._tags = tags
+        for i in range(self.nparticles):
+            self._tags[i] = tags[i]
 
     @time.setter
     def time(self, t):
@@ -230,8 +239,6 @@ class NbodySimulation:
         :param tmax: the finial time
 
         """
-        # TODO:
-
         method = self.method
         if method == "Euler":
             _update_particles = self._update_particles_euler
@@ -246,42 +253,103 @@ class NbodySimulation:
         # prepare an output folder for lateron output
         io_folder = "data_"+self.io_title
         Path(io_folder).mkdir(parents=True, exist_ok=True)
-
         # ====================================================
         #
         # The main loop of the simulation
         #
         # =====================================================
+        i = 0
+        record = 0
+        while self.time < tmax:
+            if((self.io_freq>0 and i%self.io_freq==0) or self.io_freq == 0):
+                print(i)
+                fn = io_folder+"/"+str(record).zfill(5)+".txt"
+                self.particles.output(fn, self.time)
+                record += 1
+                if(self.io_screen):
+                    print("Data saved at time = ", self.time)
 
-        # TODO:
-
+            self.particles.accelerations = self._calculate_acceleration(self.particles.masses, self.particles.positions)
+            self.particles = _update_particles(dt, self.particles)
+            if(self.visualized):
+                self._visualize()
+            self.time += dt
+            i+=1
         print("Done!")
         return
+
+    @staticmethod
+    @njit(parallel=True)
+    def acc_loop(acc,N,rsoft,G,mass,pos):
+        for i in prange(N):
+                for j in prange(N):
+                    if j!=i:
+                        dx = pos[i, 0] - pos[j, 0]
+                        dy = pos[i, 1] - pos[j, 1]
+                        dz = pos[i, 2] - pos[j, 2]
+                        r = (dx**2 + dy**2 +dz**2 + rsoft**2)**0.5
+                        acc[i, 0] += -G * mass[j,0] * dx / r**3
+                        acc[i, 1] += -G * mass[j,0] * dy / r**3
+                        acc[i, 2] += -G * mass[j,0] * dz / r**3
+        return acc
 
     def _calculate_acceleration(self, mass, pos):
         """
         Calculate the acceleration.
         """
-        # TODO:
-        return acc
+        acc = np.zeros_like(self.particles.accelerations)
+        return self.acc_loop(acc,self.nparticles,self.rsoft,self.G,mass,pos)
 
     def _update_particles_euler(self, dt, particles: Particles):
-        # TODO:
+        """ 
+        Update the particles using Euler method
+        """
+        particles.positions += particles.velocities * dt
+        particles.velocities += particles.accelerations * dt
         return particles
 
     def _update_particles_rk2(self, dt, particles: Particles):
-        # TODO:
+        """
+        Update the particles using RK2 method
+        """
+        acc1 = particles.accelerations
+        pos1 = particles.positions + particles.velocities * dt
+        vel1 = particles.velocities + acc1 * dt
+        acc2 = self._calculate_acceleration(particles.masses, pos1)
+        particles.positions += 0.5 * dt * (particles.velocities + vel1)
+        particles.velocities += 0.5 * dt * (acc1 + acc2)
         return particles
 
     def _update_particles_rk4(self, dt, particles: Particles):
-        # TODO:
+        """
+        Update the particles using RK4 method
+        """
+        acc1 = particles.accelerations
+        pos1 = particles.positions + particles.velocities * dt
+        vel1 = particles.velocities + acc1 * dt
+        acc2 = self._calculate_acceleration(particles.masses, pos1)
+        pos2 = particles.positions + vel1 * dt/2
+        vel2 = particles.velocities + acc2 * dt/2
+        acc3 = self._calculate_acceleration(particles.masses, pos2)
+        pos3 = particles.positions + vel2 * dt/2
+        vel3 = particles.velocities + acc3 * dt/2
+        acc4 = self._calculate_acceleration(particles.masses, pos3)
+        particles.positions += dt / 6.0 * (particles.velocities + 2.0 * vel1 + 2.0 * vel2 + vel3)
+        particles.velocities += dt / 6.0 * (acc1 + 2.0 * acc2 + 2.0 * acc3 + acc4)
         return particles
 
+    def _visualize(self):
+        # TODO:
+        return
 
 if __name__ == '__main__':
 
     # test Particles() here
-    particles = Particles(N=100)
+    particles = Particles(N=2)
+    particles.positions = np.array([[0, 0,0], [1., 0,0]])
+    particles.velocities = np.array([[0, 0,0], [0, 1.,0]])
     # test NbodySimulation(particles) here
     sim = NbodySimulation(particles=particles)
+    sim.setup(method="Euler", io_freq=10, io_title="test")
+    sim.evolve(dt=0.01, tmax=10)
     print("Done")

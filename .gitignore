@@ -1,4 +1,4 @@
-/.vscode
-*/__pycache__
-/data_*
+.vscode/
+__pycache__/
+data_*/
 */data_*

@@ -3,8 +3,11 @@ This file define classes for generating 2D meshes.
 
 """
 import numpy as np
-from numba import jit, int32, float64
+from numba import jit, int32, float64, njit, prange, get_num_threads, set_num_threads
 from numba.experimental import jitclass
+
+num_of_threads = get_num_threads()//2
+set_num_threads(num_of_threads)
 
 class Mesh2D:
     def __init__(self, nx, ny, buff, **kwargs):
@@ -172,8 +175,8 @@ class Mesh2D:
         return self._mesh
 
     @mesh.setter
-    def mesh(self, value):
-        self._mesh = value
+    def mesh(self, new_mesh):
+        self._mesh = new_mesh
 
     @property
     def x(self):
@@ -232,6 +235,46 @@ class Mesh2D:
         print("Reset matrix to ymax = {}".format(value))
         self._ymax = value
         self._setup()
+
+    @staticmethod
+    def cal_error(mesh,new_mesh):
+        return np.sqrt(np.sum((new_mesh-mesh)**2))
+
+    @staticmethod
+    @njit(parallel=True)
+    def _jacobi(mesh,new_mesh,istart,iend,jstart,jend):
+        for i in prange(istart,iend+1):
+            for j in prange(jstart,jend+1):
+                new_mesh[i,j] = 0.25*(mesh[i-1,j]+mesh[i+1,j]+mesh[i,j-1]+mesh[i,j+1])
+        return new_mesh
+
+    def jacobi(self,new_mesh,omega=None):
+        new_mesh = self._jacobi(self.mesh,new_mesh,self.istart,self.iend,self.jstart,self.jend)
+        return new_mesh, self.cal_error(self.mesh,new_mesh)
+
+    @staticmethod
+    @njit(parallel=True)
+    def _gauss_seidel(new_mesh,istart,iend,jstart,jend):
+        for i in prange(istart,iend+1):
+            for j in prange(jstart,jend+1):
+                new_mesh[i,j] = 0.25*(new_mesh[i-1,j]+new_mesh[i+1,j]+new_mesh[i,j-1]+new_mesh[i,j+1])
+        return new_mesh
+
+    def gauss_seidel(self,new_mesh,omega=None):
+        new_mesh = self._gauss_seidel(new_mesh,self.istart,self.iend,self.jstart,self.jend)
+        return new_mesh, self.cal_error(self.mesh,new_mesh)
+
+    @staticmethod
+    @njit(parallel=True)
+    def _sor(new_mesh,istart,iend,jstart,jend,omega):
+        for i in prange(istart,iend+1):
+            for j in prange(jstart,jend+1):
+                new_mesh[i,j] = (1-omega)*new_mesh[i,j]+omega*0.25*(new_mesh[i-1,j]+new_mesh[i+1,j]+new_mesh[i,j-1]+new_mesh[i,j+1])
+        return new_mesh
+
+    def sor(self,new_mesh,omega=1.5):
+        new_mesh = self._sor(new_mesh,self.istart,self.iend,self.jstart,self.jend,omega)
+        return new_mesh, self.cal_error(self.mesh,new_mesh)
 
 if __name__=='__main__':
     mesh = Mesh2D(10, 10, 1)
